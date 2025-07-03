@@ -133,6 +133,7 @@
                          <label for="sound-file" class="block text-sm font-medium text-gray-300 mb-1">Upload Audio File</label>
                          <input type="file" id="sound-file" accept="audio/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100">
                          <p id="file-name" class="text-xs text-gray-500 mt-1">No file chosen. Will play a default beep.</p>
+                         <p id="file-error" class="text-xs text-red-400 mt-1 hidden"></p>
                     </div>
                 </div>
                 <div class="flex justify-between items-center mt-8">
@@ -177,7 +178,7 @@
         let soundpadsCollectionRef = null;
         let categoriesCollectionRef = null;
         
-        let currentSoundPads = [];
+        let customSoundPads = [];
         let currentCategories = [];
         let selectedCategory = "All";
         
@@ -199,6 +200,7 @@
                 padCategory: document.getElementById('pad-category'),
                 soundFile: document.getElementById('sound-file'),
                 fileName: document.getElementById('file-name'),
+                fileError: document.getElementById('file-error'),
                 deleteBtn: document.getElementById('delete-btn'),
                 cancelBtn: document.getElementById('cancel-btn'),
             },
@@ -228,6 +230,192 @@
         const defaultSynth = new Tone.Synth().toDestination();
         const players = {}; 
 
+        // --- DEFAULTS ---
+        const defaultCategories = [
+            {name: "Uncategorized", protected: true, color: colors[0], order: 0}, 
+            {name: "Memes", color: colors[1], order: 1}, 
+            {name: "Sound FX", color: colors[2], order: 2}, 
+            {name: "TV & Movies", color: colors[3], order: 3},
+            {name: "Video Games", color: colors[4], order: 4}, 
+            {name: "Quotes", color: colors[5], order: 5}, 
+            {name: "Animals", color: colors[6], order: 6}, 
+            {name: "Music", color: colors[7], order: 7}, 
+            {name: "Trump", color: colors[8], order: 8},
+            {name: "Explicit", color: colors[9], order: 9}
+        ];
+        
+        const defaultPads = [
+            { id: 'default-0', name: '2000 Years Later', category: 'Memes', url: '2000 Years Later.ogg' },
+            { id: 'default-1', name: 'Accidents Happen', category: 'Quotes', url: 'Accidents Happen.ogg' },
+            { id: 'default-2', name: 'Airhorn Classic', category: 'Sound FX', url: 'Airhorn Classic.ogg' },
+            { id: 'default-3', name: 'All Star', category: 'Music', url: 'All Star All Star.ogg' },
+            { id: 'default-4', name: 'All this computer hacking is making me thirsty', category: 'Quotes', url: 'All this computer hacking is making me thirsty.ogg' },
+            { id: 'default-5', name: 'Americas going to be great again gang', category: 'Trump', url: 'Americas going to be great again gang.ogg' },
+            { id: 'default-6', name: 'Anal Sex', category: 'Explicit', url: 'Anal Sex.ogg' },
+            { id: 'default-7', name: 'Another One', category: 'Memes', url: 'Another One.ogg' },
+            { id: 'default-8', name: 'Are you sure about that', category: 'Memes', url: 'Are you sure about that.ogg' },
+            { id: 'default-9', name: 'Asian Gong', category: 'Sound FX', url: 'Asian Gong.ogg' },
+            { id: 'default-10', name: 'Bad Boys Theme', category: 'TV & Movies', url: 'Bad Boys Theme.ogg' },
+            { id: 'default-11', name: 'Bad to the Bone', category: 'Music', url: 'Bad to the Bone.ogg' },
+            { id: 'default-12', name: 'Benny Hill Chase Silly', category: 'TV & Movies', url: 'Benny Hill Chase Silly.ogg' },
+            { id: 'default-13', name: 'Big cheer', category: 'Sound FX', url: 'Big cheer.ogg' },
+            { id: 'default-14', name: 'Bike Horn', category: 'Sound FX', url: 'Bike Horn.ogg' },
+            { id: 'default-15', name: 'Bill Nye the Science Guy', category: 'TV & Movies', url: 'Bill Nye the Science Guy.ogg' },
+            { id: 'default-16', name: 'Boing', category: 'Sound FX', url: 'Boing.ogg' },
+            { id: 'default-17', name: 'Bomb the shit out of them Trump', category: 'Trump', url: 'Bomb the shit out of them Trump.ogg' },
+            { id: 'default-18', name: 'Boxing Bell', category: 'Sound FX', url: 'Boxing Bell.ogg' },
+            { id: 'default-19', name: 'Breaking News', category: 'Sound FX', url: 'Breaking News.ogg' },
+            { id: 'default-20', name: 'Brutal MK', category: 'Video Games', url: 'Brutal MK.ogg' },
+            { id: 'default-21', name: 'Buzzer', category: 'Sound FX', url: 'Buzzer.ogg' },
+            { id: 'default-22', name: 'Bye Felicia', category: 'Memes', url: 'Bye Felicia.ogg' },
+            { id: 'default-23', name: 'Camera Click', category: 'Sound FX', url: 'Camera Click.ogg' },
+            { id: 'default-24', name: 'Car Crash', category: 'Sound FX', url: 'Car Crash.ogg' },
+            { id: 'default-25', name: 'Cartoon Slipping', category: 'Sound FX', url: 'Cartoon Slipping.ogg' },
+            { id: 'default-26', name: 'Cash me outside how bout dat', category: 'Memes', url: 'Cash me outside how bout dat.ogg' },
+            { id: 'default-27', name: 'Chewbaca', category: 'TV & Movies', url: 'Chewbaca.ogg' },
+            { id: 'default-28', name: 'Clapping Normal', category: 'Sound FX', url: 'Clapping Normal.ogg' },
+            { id: 'default-29', name: 'Come on down', category: 'TV & Movies', url: 'Come-on-down.ogg' },
+            { id: 'default-30', name: 'Congratulations Trump', category: 'Trump', url: 'Congratulations Trump.ogg' },
+            { id: 'default-31', name: 'Crickets', category: 'Animals', url: 'Crickets.ogg' },
+            { id: 'default-32', name: 'Crowd Aww Loss', category: 'Sound FX', url: 'Crowd Aww Loss.ogg' },
+            { id: 'default-33', name: 'Crowd Booo', category: 'Sound FX', url: 'Crowd Booo.ogg' },
+            { id: 'default-34', name: 'Crying Baby', category: 'Sound FX', url: 'Crying Baby.ogg' },
+            { id: 'default-35', name: 'CSI Yeah', category: 'TV & Movies', url: 'CSI Yeah.ogg' },
+            { id: 'default-36', name: 'Curb your enthusiasm', category: 'TV & Movies', url: 'Curb-your-enthusiasm.ogg' },
+            { id: 'default-37', name: 'Dinosaur Groan', category: 'Animals', url: 'Dinosaur Groan.ogg' },
+            { id: 'default-38', name: 'Do not come', category: 'Explicit', url: 'Do not come.ogg' },
+            { id: 'default-39', name: 'Dogs', category: 'Animals', url: 'Dogs.ogg' },
+            { id: 'default-40', name: 'Donkey', category: 'Animals', url: 'Donkey.ogg' },
+            { id: 'default-41', name: 'Drums Medium', category: 'Sound FX', url: 'Drums Medium.ogg' },
+            { id: 'default-42', name: 'Drums Rim Shot', category: 'Sound FX', url: 'Drums Rim Shot.ogg' },
+            { id: 'default-43', name: 'Dun Dun Dunnnn', category: 'Sound FX', url: 'Dun Dun Dunnnn.ogg' },
+            { id: 'default-44', name: 'Eagle', category: 'Animals', url: 'Eagle.ogg' },
+            { id: 'default-45', name: 'Evil Laugh', category: 'Sound FX', url: 'Evil Laugh.ogg' },
+            { id: 'default-46', name: 'Family Feud Theme', category: 'TV & Movies', url: 'Family Feud Theme.ogg' },
+            { id: 'default-47', name: 'Fart', category: 'Sound FX', url: 'Fart.ogg' },
+            { id: 'default-48', name: 'Fatality', category: 'Video Games', url: 'Fatality.ogg' },
+            { id: 'default-49', name: 'Female scream', category: 'Sound FX', url: 'Female scream.ogg' },
+            { id: 'default-50', name: 'Flawless Victory MK', category: 'Video Games', url: 'Flawless Victory MK.ogg' },
+            { id: 'default-51', name: 'Fox TV Theme', category: 'TV & Movies', url: 'Fox TV Theme.ogg' },
+            { id: 'default-52', name: 'Friends Theme', category: 'TV & Movies', url: 'Friends Theme.ogg' },
+            { id: 'default-53', name: 'Gasp', category: 'Sound FX', url: 'Gasp.ogg' },
+            { id: 'default-54', name: 'Get er Done', category: 'Quotes', url: 'Get er Done.ogg' },
+            { id: 'default-55', name: 'Get Swifty', category: 'TV & Movies', url: 'Get Swifty.ogg' },
+            { id: 'default-56', name: 'Godfather Theme', category: 'TV & Movies', url: 'Godfather Theme.ogg' },
+            { id: 'default-57', name: 'Gun Shot with Cock', category: 'Sound FX', url: 'Gun Shot with Cock.ogg' },
+            { id: 'default-58', name: 'Ha Ha Nelson', category: 'TV & Movies', url: 'Ha Ha Nelson.ogg' },
+            { id: 'default-59', name: 'Hallelujah', category: 'Music', url: 'Hallelujah.ogg' },
+            { id: 'default-60', name: 'Hawk Tuah', category: 'Memes', url: 'Hawk Tuah.ogg' },
+            { id: 'default-61', name: 'He He Jackson', category: 'Music', url: 'He He Jackson.ogg' },
+            { id: 'default-62', name: 'Helicopter', category: 'Sound FX', url: 'Helicopter.ogg' },
+            { id: 'default-63', name: 'Hell naw', category: 'Quotes', url: 'Hell naw.ogg' },
+            { id: 'default-64', name: 'Horse Whinny', category: 'Animals', url: 'Horse Whinny.ogg' },
+            { id: 'default-65', name: 'How Dare You', category: 'Quotes', url: 'How Dare You.ogg' },
+            { id: 'default-66', name: 'I am a Millionaire - Trump', category: 'Trump', url: 'I am a Millionaire - Trump.ogg' },
+            { id: 'default-67', name: 'I dropped my monster condom', category: 'Memes', url: 'I dropped my monster condom.ogg' },
+            { id: 'default-68', name: 'I got hairy legs', category: 'Quotes', url: 'I got hairy legs.ogg' },
+            { id: 'default-69', name: 'Im gonna come', category: 'Explicit', url: 'Im gonna come.ogg' },
+            { id: 'default-70', name: 'Inception', category: 'TV & Movies', url: 'Inception.ogg' },
+            { id: 'default-71', name: 'In the Navy', category: 'Music', url: 'In the Navy.ogg' },
+            { id: 'default-72', name: 'It is Maam', category: 'Memes', url: 'It is Maam.ogg' },
+            { id: 'default-73', name: 'Its raining men hallelujah', category: 'Music', url: 'Its raining men hallelujah.ogg' },
+            { id: 'default-74', name: 'Ive fallen and I can\'t get up', category: 'Memes', url: 'Ive fallen and I can\'t get up.ogg' },
+            { id: 'default-75', name: 'Jammin Bob Marley', category: 'Music', url: 'Jammin Bob Marley.ogg' },
+            { id: 'default-76', name: 'Jeopardy Theme', category: 'TV & Movies', url: 'Jeopardy Theme.ogg' },
+            { id: 'default-77', name: 'Just do it', category: 'Memes', url: 'Just do it.ogg' },
+            { id: 'default-78', name: 'Kaching', category: 'Sound FX', url: 'Kaching.ogg' },
+            { id: 'default-79', name: 'Ladies and Gentlemen we got em', category: 'Memes', url: 'Ladies and Gentlemen we got em.ogg' },
+            { id: 'default-80', name: 'Laughing Sitcom', category: 'Sound FX', url: 'Laughing Sitcom.ogg' },
+            { id: 'default-81', name: 'Law and Order', category: 'TV & Movies', url: 'Law and Order.ogg' },
+            { id: 'default-82', name: 'Looney Toons Theme', category: 'TV & Movies', url: 'Looney Toons Theme.ogg' },
+            { id: 'default-83', name: 'LOSE Millionaire', category: 'TV & Movies', url: 'LOSE Millionaire.ogg' },
+            { id: 'default-84', name: 'Mad World', category: 'Music', url: 'Mad World.ogg' },
+            { id: 'default-85', name: 'Mario Coin', category: 'Video Games', url: 'Mario Coin.ogg' },
+            { id: 'default-86', name: 'Mario Game Over', category: 'Video Games', url: 'Mario Game Over.ogg' },
+            { id: 'default-87', name: 'Mario Lose Life', category: 'Video Games', url: 'Mario Lose Life.ogg' },
+            { id: 'default-88', name: 'Mario Power Up', category: 'Video Games', url: 'Mario Power Up.ogg' },
+            { id: 'default-89', name: 'Mash Theme', category: 'TV & Movies', url: 'Mash Theme.ogg' },
+            { id: 'default-90', name: 'Meow', category: 'Animals', url: 'Meow.ogg' },
+            { id: 'default-91', name: 'Metal Gear Alert', category: 'Video Games', url: 'Metal Gear Alert.ogg' },
+            { id: 'default-92', name: 'Mission failed', category: 'Video Games', url: 'Mission failed.ogg' },
+            { id: 'default-93', name: 'Mission Impossible', category: 'TV & Movies', url: 'Mission Impossible.ogg' },
+            { id: 'default-94', name: 'Monkey', category: 'Animals', url: 'Monkey.ogg' },
+            { id: 'default-95', name: 'Moo', category: 'Animals', url: 'Moo.ogg' },
+            { id: 'default-96', name: 'My name Jeff', category: 'Memes', url: 'My name Jeff.ogg' },
+            { id: 'default-97', name: 'Ohhh La La', category: 'Quotes', url: 'Ohhh La La.ogg' },
+            { id: 'default-98', name: 'Ok Lil Jon', category: 'Music', url: 'Ok Lil Jon.ogg' },
+            { id: 'default-99', name: 'Pac Man Death', category: 'Video Games', url: 'Pac Man Death.ogg' },
+            { id: 'default-100', name: 'Pig', category: 'Animals', url: 'Pig.ogg' },
+            { id: 'default-101', name: 'Pokemon', category: 'TV & Movies', url: 'Pokemon.ogg' },
+            { id: 'default-102', name: 'Pornhub', category: 'Explicit', url: 'Pornhub.ogg' },
+            { id: 'default-103', name: 'Price is right LOSE', category: 'TV & Movies', url: 'Price is right LOSE.ogg' },
+            { id: 'default-104', name: 'Punch', category: 'Sound FX', url: 'Punch.ogg' },
+            { id: 'default-105', name: 'Road Runner', category: 'TV & Movies', url: 'Road Runner.ogg' },
+            { id: 'default-106', name: 'Sad Trombone', category: 'Sound FX', url: 'Sad Trombone.ogg' },
+            { id: 'default-107', name: 'Sad Violin', category: 'Music', url: 'Sad Violin.ogg' },
+            { id: 'default-108', name: 'ScoobyDoo', category: 'TV & Movies', url: 'ScoobyDoo.ogg' },
+            { id: 'default-109', name: 'Seinfeld Intro', category: 'TV & Movies', url: 'Seinfeld Intro.ogg' },
+            { id: 'default-110', name: 'Show me the Money', category: 'Quotes', url: 'Show me the Money.ogg' },
+            { id: 'default-111', name: 'Smoke Weed Everyday', category: 'Music', url: 'Smoke Weed Everyday.ogg' },
+            { id: 'default-112', name: 'Spongebob Fail', category: 'TV & Movies', url: 'Spongebob Fail.ogg' },
+            { id: 'default-113', name: 'Spring', category: 'Sound FX', url: 'Spring.ogg' },
+            { id: 'default-114', name: 'Star Wars Cantina', category: 'TV & Movies', url: 'Star Wars Cantina.ogg' },
+            { id: 'default-115', name: 'Suspense Medium', category: 'Sound FX', url: 'Suspense Medium.ogg' },
+            { id: 'default-116', name: 'Taco bell bong', category: 'Sound FX', url: 'Taco bell bong.ogg' },
+            { id: 'default-117', name: 'Tada', category: 'Sound FX', url: 'Tada.ogg' },
+            { id: 'default-118', name: 'Tequila', category: 'Music', url: 'Tequila.ogg' },
+            { id: 'default-119', name: 'Thats What She Said', category: 'Quotes', url: 'Thats What She Said.ogg' },
+            { id: 'default-120', name: 'The more you know', category: 'TV & Movies', url: 'The more you know.ogg' },
+            { id: 'default-121', name: 'Tim Allen Grunt Home Improvement', category: 'TV & Movies', url: 'Tim Allen Grunt Home Improvement.ogg' },
+            { id: 'default-122', name: 'Toilet', category: 'Sound FX', url: 'Toilet.ogg' },
+            { id: 'default-123', name: 'Tree Fiddy', category: 'Memes', url: 'Tree Fiddy.ogg' },
+            { id: 'default-124', name: 'Universal Studios', category: 'TV & Movies', url: 'Universal Studios.ogg' },
+            { id: 'default-125', name: 'Wasted', category: 'Video Games', url: 'Wasted.ogg' },
+            { id: 'default-126', name: 'Weakest Link', category: 'TV & Movies', url: 'Weakest Link.ogg' },
+            { id: 'default-127', name: 'Well Be Right Back', category: 'TV & Movies', url: 'Well Be Right Back.ogg' },
+            { id: 'default-128', name: 'What da dog do', category: 'Memes', url: 'What da dog do.ogg' },
+            { id: 'default-129', name: 'What Lil Jon', category: 'Music', url: 'What Lil Jon.ogg' },
+            { id: 'default-130', name: 'Where is the lamb sauce', category: 'Quotes', url: 'Where is the lamb sauce.ogg' },
+            { id: 'default-131', name: 'Whip', category: 'Sound FX', url: 'Whip.ogg' },
+            { id: 'default-132', name: 'Who is your daddy and what does he do', category: 'Quotes', url: 'Who is your daddy and what does he do.ogg' },
+            { id: 'default-133', name: 'Whos that Pokemon', category: 'Video Games', url: 'Whos that Pokemon.ogg' },
+            { id: 'default-134', name: 'Why are you gay', category: 'Explicit', url: 'Why are you gay.ogg' },
+            { id: 'default-135', name: 'Why Cant We Be Friends', category: 'Music', url: 'Why Can\'t We Be Friends.ogg' },
+            { id: 'default-136', name: 'WoHoo Homer', category: 'TV & Movies', url: 'WoHoo Homer.ogg' },
+            { id: 'default-137', name: 'Wolf', category: 'Animals', url: 'Wolf.ogg' },
+            { id: 'default-138', name: 'Wonka flute', category: 'TV & Movies', url: 'Wonka flute.ogg' },
+            { id: 'default-139', name: 'Woodpecker', category: 'Animals', url: 'Woodpecker.ogg' },
+            { id: 'default-140', name: 'Wow', category: 'Memes', url: 'Wow.ogg' },
+            { id: 'default-141', name: 'Ya Science', category: 'Memes', url: 'Ya Science.ogg' },
+            { id: 'default-142', name: 'Yahoo', category: 'Sound FX', url: 'Yahoo.ogg' },
+            { id: 'default-143', name: 'Yeah Lil Jon', category: 'Music', url: 'Yeah Lil Jon.ogg' },
+            { id: 'default-144', name: 'Yippee', category: 'Memes', url: 'Yippee.ogg' },
+            { id: 'default-145', name: 'You Lose MK', category: 'Video Games', url: 'You Lose MK.ogg' },
+            { id: 'default-146', name: 'You Wanna Get High', category: 'Quotes', url: 'You Wanna Get High.ogg' },
+            { id: 'default-147', name: 'Your Fired Trump', category: 'Trump', url: 'Your Fired Trump.ogg' },
+            { id: 'default-148', name: 'Youre a Millionaire', category: 'TV & Movies', url: 'You\'re a Millionaire.ogg' },
+            { id: 'default-149', name: 'Does he look like a bitch', category: 'Explicit', url: 'Does he look like a bitch.ogg' },
+            { id: 'default-150', name: 'Eat Shit Derek', category: 'Explicit', url: 'Eat Shit Derek.ogg' },
+            { id: 'default-151', name: 'He was a Retard', category: 'Explicit', url: 'He was a Retard.ogg' },
+            { id: 'default-152', name: 'Hopefully you didnt fuck around and waste your life', category: 'Explicit', url: 'Hopefully you didn\'t fuck around and waste your life.ogg' },
+            { id: 'default-153', name: 'Im gonna go kill myself', category: 'Explicit', url: 'Im gonna go kill myself.ogg' },
+            { id: 'default-154', name: 'Im Kinda Retarded', category: 'Explicit', url: 'Im Kinda Retarded.ogg' },
+            { id: 'default-155', name: 'In a few mins bitch', category: 'Explicit', url: 'In a few mins bitch.ogg' },
+            { id: 'default-156', name: 'In San Fran its all about gay bath houses', category: 'Explicit', url: 'In San Fran its all about gay bath houses.ogg' },
+            { id: 'default-157', name: 'Lot of perverts in here', category: 'Explicit', url: 'Lot of perverts in here.ogg' },
+            { id: 'default-158', name: 'MotherFucker', category: 'Explicit', url: 'MotherFucker.ogg' },
+            { id: 'default-159', name: 'Oral Sex', category: 'Explicit', url: 'Oral Sex.ogg' },
+            { id: 'default-160', name: 'Orgasm', category: 'Explicit', url: 'Orgasm.ogg' },
+            { id: 'default-161', name: 'Retard Alert', category: 'Explicit', url: 'Retard Alert.ogg' },
+            { id: 'default-162', name: 'Shut the Fuck Up', category: 'Explicit', url: 'Shut the Fuck Up.ogg' },
+            { id: 'default-163', name: 'Suicide', category: 'Explicit', url: 'Suicide.ogg' },
+            { id: 'default-164', name: 'Why in the fuck would I do that', category: 'Explicit', url: 'Why in the fuck would I do that.ogg' },
+            { id: 'default-165', name: 'Yeah this is gonna help with that bitch', category: 'Explicit', url: 'Yeah this is gonna help with that bitch.ogg' },
+            { id: 'default-166', name: 'You Have Smoked Yourself Retarded', category: 'Explicit', url: 'You Have Smoked Yourself Retarded.ogg' },
+            { id: 'default-167', name: 'You Suck You Jackass', category: 'Explicit', url: 'You Suck You Jackass.ogg' },
+        ].map(pad => ({...pad, sound: { type: 'custom', url: './sounds/' + pad.url }}));
+
+
         document.addEventListener('DOMContentLoaded', () => {
             onAuthStateChanged(auth, handleAuthStateChange);
             addEventListeners();
@@ -240,7 +428,7 @@
                 soundpadsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/soundpads`);
                 categoriesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/categories`);
                 
-                await checkAndCreateDefaults();
+                await checkAndCreateDefaultCategories();
 
                 listenForCategories();
                 listenForSoundPads();
@@ -264,6 +452,7 @@
             ui.editModal.deleteBtn.addEventListener('click', handleDelete);
             ui.editModal.soundFile.addEventListener('change', () => {
                 ui.editModal.fileName.textContent = ui.editModal.soundFile.files.length > 0 ? ui.editModal.soundFile.files[0].name : 'No file chosen.';
+                ui.editModal.fileError.classList.add('hidden');
             });
             ui.searchBar.addEventListener('input', renderSoundboard);
             ui.stopAllBtn.addEventListener('click', stopAllSounds);
@@ -273,247 +462,35 @@
             ui.categoriesModal.form.addEventListener('submit', handleAddCategory);
         }
 
-        async function checkAndCreateDefaults() {
+        async function checkAndCreateDefaultCategories() {
             const catSnap = await getDocs(categoriesCollectionRef);
             if (catSnap.empty) {
-                const baseURL = './sounds/'; 
-                const defaultCategories = [
-                    {name: "Uncategorized", protected: true, color: colors[0], order: 0}, 
-                    {name: "Memes", color: colors[1], order: 1}, 
-                    {name: "Sound FX", color: colors[2], order: 2}, 
-                    {name: "TV & Movies", color: colors[3], order: 3},
-                    {name: "Video Games", color: colors[4], order: 4}, 
-                    {name: "Quotes", color: colors[5], order: 5}, 
-                    {name: "Animals", color: colors[6], order: 6}, 
-                    {name: "Music", color: colors[7], order: 7}, 
-                    {name: "Trump", color: colors[8], order: 8},
-                    {name: "Explicit", color: colors[9], order: 9}
-                ];
-                // UPDATED: Filenames now match user's files exactly, including spaces and capitalization.
-                const defaultSounds = [
-                    { name: '2000 Years Later', category: 'Memes', url: '2000 Years Later.ogg' },
-                    { name: 'Accidents Happen', category: 'Quotes', url: 'Accidents Happen.ogg' },
-                    { name: 'Airhorn Classic', category: 'Sound FX', url: 'Airhorn Classic.ogg' },
-                    { name: 'All Star', category: 'Music', url: 'All Star All Star.ogg' },
-                    { name: 'All this computer hacking is making me thirsty', category: 'Quotes', url: 'All this computer hacking is making me thirsty.ogg' },
-                    { name: 'Americas going to be great again gang', category: 'Trump', url: 'Americas going to be great again gang.ogg' },
-                    { name: 'Anal Sex', category: 'Explicit', url: 'Anal Sex.ogg' },
-                    { name: 'Another One', category: 'Memes', url: 'Another One.ogg' },
-                    { name: 'Are you sure about that', category: 'Memes', url: 'Are you sure about that.ogg' },
-                    { name: 'Asian Gong', category: 'Sound FX', url: 'Asian Gong.ogg' },
-                    { name: 'Bad Boys Theme', category: 'TV & Movies', url: 'Bad Boys Theme.ogg' },
-                    { name: 'Bad to the Bone', category: 'Music', url: 'Bad to the Bone.ogg' },
-                    { name: 'Benny Hill Chase Silly', category: 'TV & Movies', url: 'Benny Hill Chase Silly.ogg' },
-                    { name: 'Big cheer', category: 'Sound FX', url: 'Big cheer.ogg' },
-                    { name: 'Bike Horn', category: 'Sound FX', url: 'Bike Horn.ogg' },
-                    { name: 'Bill Nye the Science Guy', category: 'TV & Movies', url: 'Bill Nye the Science Guy.ogg' },
-                    { name: 'Boing', category: 'Sound FX', url: 'Boing.ogg' },
-                    { name: 'Bomb the shit out of them Trump', category: 'Trump', url: 'Bomb the shit out of them Trump.ogg' },
-                    { name: 'Boxing Bell', category: 'Sound FX', url: 'Boxing Bell.ogg' },
-                    { name: 'Breaking News', category: 'Sound FX', url: 'Breaking News.ogg' },
-                    { name: 'Brutal MK', category: 'Video Games', url: 'Brutal MK.ogg' },
-                    { name: 'Buzzer', category: 'Sound FX', url: 'Buzzer.ogg' },
-                    { name: 'Bye Felicia', category: 'Memes', url: 'Bye Felicia.ogg' },
-                    { name: 'Camera Click', category: 'Sound FX', url: 'Camera Click.ogg' },
-                    { name: 'Car Crash', category: 'Sound FX', url: 'Car Crash.ogg' },
-                    { name: 'Cartoon Slipping', category: 'Sound FX', url: 'Cartoon Slipping.ogg' },
-                    { name: 'Cash me outside how bout dat', category: 'Memes', url: 'Cash me outside how bout dat.ogg' },
-                    { name: 'Chewbaca', category: 'TV & Movies', url: 'Chewbaca.ogg' },
-                    { name: 'Clapping Normal', category: 'Sound FX', url: 'Clapping Normal.ogg' },
-                    { name: 'Come on down', category: 'TV & Movies', url: 'Come-on-down.ogg' },
-                    { name: 'Congratulations Trump', category: 'Trump', url: 'Congratulations Trump.ogg' },
-                    { name: 'Crickets', category: 'Animals', url: 'Crickets.ogg' },
-                    { name: 'Crowd Aww Loss', category: 'Sound FX', url: 'Crowd Aww Loss.ogg' },
-                    { name: 'Crowd Booo', category: 'Sound FX', url: 'Crowd Booo.ogg' },
-                    { name: 'Crying Baby', category: 'Sound FX', url: 'Crying Baby.ogg' },
-                    { name: 'CSI Yeah', category: 'TV & Movies', url: 'CSI Yeah.ogg' },
-                    { name: 'Curb your enthusiasm', category: 'TV & Movies', url: 'Curb-your-enthusiasm.ogg' },
-                    { name: 'Dinosaur Groan', category: 'Animals', url: 'Dinosaur Groan.ogg' },
-                    { name: 'Do not come', category: 'Explicit', url: 'Do not come.ogg' },
-                    { name: 'Dogs', category: 'Animals', url: 'Dogs.ogg' },
-                    { name: 'Donkey', category: 'Animals', url: 'Donkey.ogg' },
-                    { name: 'Drums Medium', category: 'Sound FX', url: 'Drums Medium.ogg' },
-                    { name: 'Drums Rim Shot', category: 'Sound FX', url: 'Drums Rim Shot.ogg' },
-                    { name: 'Dun Dun Dunnnn', category: 'Sound FX', url: 'Dun Dun Dunnnn.ogg' },
-                    { name: 'Eagle', category: 'Animals', url: 'Eagle.ogg' },
-                    { name: 'Evil Laugh', category: 'Sound FX', url: 'Evil Laugh.ogg' },
-                    { name: 'Family Feud Theme', category: 'TV & Movies', url: 'Family Feud Theme.ogg' },
-                    { name: 'Fart', category: 'Sound FX', url: 'Fart.ogg' },
-                    { name: 'Fatality', category: 'Video Games', url: 'Fatality.ogg' },
-                    { name: 'Female scream', category: 'Sound FX', url: 'Female scream.ogg' },
-                    { name: 'Flawless Victory MK', category: 'Video Games', url: 'Flawless Victory MK.ogg' },
-                    { name: 'Fox TV Theme', category: 'TV & Movies', url: 'Fox TV Theme.ogg' },
-                    { name: 'Friends Theme', category: 'TV & Movies', url: 'Friends Theme.ogg' },
-                    { name: 'Gasp', category: 'Sound FX', url: 'Gasp.ogg' },
-                    { name: 'Get er Done', category: 'Quotes', url: 'Get er Done.ogg' },
-                    { name: 'Get Swifty', category: 'TV & Movies', url: 'Get Swifty.ogg' },
-                    { name: 'Godfather Theme', category: 'TV & Movies', url: 'Godfather Theme.ogg' },
-                    { name: 'Gun Shot with Cock', category: 'Sound FX', url: 'Gun Shot with Cock.ogg' },
-                    { name: 'Ha Ha Nelson', category: 'TV & Movies', url: 'Ha Ha Nelson.ogg' },
-                    { name: 'Hallelujah', category: 'Music', url: 'Hallelujah.ogg' },
-                    { name: 'Hawk Tuah', category: 'Memes', url: 'Hawk Tuah.ogg' },
-                    { name: 'He He Jackson', category: 'Music', url: 'He He Jackson.ogg' },
-                    { name: 'Helicopter', category: 'Sound FX', url: 'Helicopter.ogg' },
-                    { name: 'Hell naw', category: 'Quotes', url: 'Hell naw.ogg' },
-                    { name: 'Horse Whinny', category: 'Animals', url: 'Horse Whinny.ogg' },
-                    { name: 'How Dare You', category: 'Quotes', url: 'How Dare You.ogg' },
-                    { name: 'I am a Millionaire - Trump', category: 'Trump', url: 'I am a Millionaire - Trump.ogg' },
-                    { name: 'I dropped my monster condom', category: 'Memes', url: 'I dropped my monster condom.ogg' },
-                    { name: 'I got hairy legs', category: 'Quotes', url: 'I got hairy legs.ogg' },
-                    { name: 'Im gonna come', category: 'Explicit', url: 'Im gonna come.ogg' },
-                    { name: 'Inception', category: 'TV & Movies', url: 'Inception.ogg' },
-                    { name: 'In the Navy', category: 'Music', url: 'In the Navy.ogg' },
-                    { name: 'It is Maam', category: 'Memes', url: 'It is Maam.ogg' },
-                    { name: 'Its raining men hallelujah', category: 'Music', url: 'Its raining men hallelujah.ogg' },
-                    { name: 'Ive fallen and I can\'t get up', category: 'Memes', url: 'Ive fallen and I can\'t get up.ogg' },
-                    { name: 'Jammin Bob Marley', category: 'Music', url: 'Jammin Bob Marley.ogg' },
-                    { name: 'Jeopardy Theme', category: 'TV & Movies', url: 'Jeopardy Theme.ogg' },
-                    { name: 'Just do it', category: 'Memes', url: 'Just do it.ogg' },
-                    { name: 'Kaching', category: 'Sound FX', url: 'Kaching.ogg' },
-                    { name: 'Ladies and Gentlemen we got em', category: 'Memes', url: 'Ladies and Gentlemen we got em.ogg' },
-                    { name: 'Laughing Sitcom', category: 'Sound FX', url: 'Laughing Sitcom.ogg' },
-                    { name: 'Law and Order', category: 'TV & Movies', url: 'Law and Order.ogg' },
-                    { name: 'Looney Toons Theme', category: 'TV & Movies', url: 'Looney Toons Theme.ogg' },
-                    { name: 'LOSE Millionaire', category: 'TV & Movies', url: 'LOSE Millionaire.ogg' },
-                    { name: 'Mad World', category: 'Music', url: 'Mad World.ogg' },
-                    { name: 'Mario Coin', category: 'Video Games', url: 'Mario Coin.ogg' },
-                    { name: 'Mario Game Over', category: 'Video Games', url: 'Mario Game Over.ogg' },
-                    { name: 'Mario Lose Life', category: 'Video Games', url: 'Mario Lose Life.ogg' },
-                    { name: 'Mario Power Up', category: 'Video Games', url: 'Mario Power Up.ogg' },
-                    { name: 'Mash Theme', category: 'TV & Movies', url: 'Mash Theme.ogg' },
-                    { name: 'Meow', category: 'Animals', url: 'Meow.ogg' },
-                    { name: 'Metal Gear Alert', category: 'Video Games', url: 'Metal Gear Alert.ogg' },
-                    { name: 'Mission failed', category: 'Video Games', url: 'Mission failed.ogg' },
-                    { name: 'Mission Impossible', category: 'TV & Movies', url: 'Mission Impossible.ogg' },
-                    { name: 'Monkey', category: 'Animals', url: 'Monkey.ogg' },
-                    { name: 'Moo', category: 'Animals', url: 'Moo.ogg' },
-                    { name: 'My name Jeff', category: 'Memes', url: 'My name Jeff.ogg' },
-                    { name: 'Ohhh La La', category: 'Quotes', url: 'Ohhh La La.ogg' },
-                    { name: 'Ok Lil Jon', category: 'Music', url: 'Ok Lil Jon.ogg' },
-                    { name: 'Pac Man Death', category: 'Video Games', url: 'Pac Man Death.ogg' },
-                    { name: 'Pig', category: 'Animals', url: 'Pig.ogg' },
-                    { name: 'Pokemon', category: 'TV & Movies', url: 'Pokemon.ogg' },
-                    { name: 'Pornhub', category: 'Explicit', url: 'Pornhub.ogg' },
-                    { name: 'Price is right LOSE', category: 'TV & Movies', url: 'Price is right LOSE.ogg' },
-                    { name: 'Punch', category: 'Sound FX', url: 'Punch.ogg' },
-                    { name: 'Road Runner', category: 'TV & Movies', url: 'Road Runner.ogg' },
-                    { name: 'Sad Trombone', category: 'Sound FX', url: 'Sad Trombone.ogg' },
-                    { name: 'Sad Violin', category: 'Music', url: 'Sad Violin.ogg' },
-                    { name: 'ScoobyDoo', category: 'TV & Movies', url: 'ScoobyDoo.ogg' },
-                    { name: 'Seinfeld Intro', category: 'TV & Movies', url: 'Seinfeld Intro.ogg' },
-                    { name: 'Show me the Money', category: 'Quotes', url: 'Show me the Money.ogg' },
-                    { name: 'Smoke Weed Everyday', category: 'Music', url: 'Smoke Weed Everyday.ogg' },
-                    { name: 'Spongebob Fail', category: 'TV & Movies', url: 'Spongebob Fail.ogg' },
-                    { name: 'Spring', category: 'Sound FX', url: 'Spring.ogg' },
-                    { name: 'Star Wars Cantina', category: 'TV & Movies', url: 'Star Wars Cantina.ogg' },
-                    { name: 'Suspense Medium', category: 'Sound FX', url: 'Suspense Medium.ogg' },
-                    { name: 'Taco bell bong', category: 'Sound FX', url: 'Taco bell bong.ogg' },
-                    { name: 'Tada', category: 'Sound FX', url: 'Tada.ogg' },
-                    { name: 'Tequila', category: 'Music', url: 'Tequila.ogg' },
-                    { name: 'Thats What She Said', category: 'Quotes', url: 'Thats What She Said.ogg' },
-                    { name: 'The more you know', category: 'TV & Movies', url: 'The more you know.ogg' },
-                    { name: 'Tim Allen Grunt Home Improvement', category: 'TV & Movies', url: 'Tim Allen Grunt Home Improvement.ogg' },
-                    { name: 'Toilet', category: 'Sound FX', url: 'Toilet.ogg' },
-                    { name: 'Tree Fiddy', category: 'Memes', url: 'Tree Fiddy.ogg' },
-                    { name: 'Universal Studios', category: 'TV & Movies', url: 'Universal Studios.ogg' },
-                    { name: 'Wasted', category: 'Video Games', url: 'Wasted.ogg' },
-                    { name: 'Weakest Link', category: 'TV & Movies', url: 'Weakest Link.ogg' },
-                    { name: 'Well Be Right Back', category: 'TV & Movies', url: 'Well Be Right Back.ogg' },
-                    { name: 'What da dog do', category: 'Memes', url: 'What da dog do.ogg' },
-                    { name: 'What Lil Jon', category: 'Music', url: 'What Lil Jon.ogg' },
-                    { name: 'Where is the lamb sauce', category: 'Quotes', url: 'Where is the lamb sauce.ogg' },
-                    { name: 'Whip', category: 'Sound FX', url: 'Whip.ogg' },
-                    { name: 'Who is your daddy and what does he do', category: 'Quotes', url: 'Who is your daddy and what does he do.ogg' },
-                    { name: 'Whos that Pokemon', category: 'Video Games', url: 'Whos that Pokemon.ogg' },
-                    { name: 'Why are you gay', category: 'Explicit', url: 'Why are you gay.ogg' },
-                    { name: 'Why Cant We Be Friends', category: 'Music', url: 'Why Can\'t We Be Friends.ogg' },
-                    { name: 'WoHoo Homer', category: 'TV & Movies', url: 'WoHoo Homer.ogg' },
-                    { name: 'Wolf', category: 'Animals', url: 'Wolf.ogg' },
-                    { name: 'Wonka flute', category: 'TV & Movies', url: 'Wonka flute.ogg' },
-                    { name: 'Woodpecker', category: 'Animals', url: 'Woodpecker.ogg' },
-                    { name: 'Wow', category: 'Memes', url: 'Wow.ogg' },
-                    { name: 'Ya Science', category: 'Memes', url: 'Ya Science.ogg' },
-                    { name: 'Yahoo', category: 'Sound FX', url: 'Yahoo.ogg' },
-                    { name: 'Yeah Lil Jon', category: 'Music', url: 'Yeah Lil Jon.ogg' },
-                    { name: 'Yippee', category: 'Memes', url: 'Yippee.ogg' },
-                    { name: 'You Lose MK', category: 'Video Games', url: 'You Lose MK.ogg' },
-                    { name: 'You Wanna Get High', category: 'Quotes', url: 'You Wanna Get High.ogg' },
-                    { name: 'Your Fired Trump', category: 'Trump', url: 'Your Fired Trump.ogg' },
-                    { name: 'Youre a Millionaire', category: 'TV & Movies', url: 'You\'re a Millionaire.ogg' },
-                    { name: 'Does he look like a bitch', category: 'Explicit', url: 'Does he look like a bitch.ogg' },
-                    { name: 'Eat Shit Derek', category: 'Explicit', url: 'Eat Shit Derek.ogg' },
-                    { name: 'He was a Retard', category: 'Explicit', url: 'He was a Retard.ogg' },
-                    { name: 'Hopefully you didnt fuck around and waste your life', category: 'Explicit', url: 'Hopefully you didn\'t fuck around and waste your life.ogg' },
-                    { name: 'Im gonna go kill myself', category: 'Explicit', url: 'Im gonna go kill myself.ogg' },
-                    { name: 'Im Kinda Retarded', category: 'Explicit', url: 'Im Kinda Retarded.ogg' },
-                    { name: 'In a few mins bitch', category: 'Explicit', url: 'In a few mins bitch.ogg' },
-                    { name: 'In San Fran its all about gay bath houses', category: 'Explicit', url: 'In San Fran its all about gay bath houses.ogg' },
-                    { name: 'Lot of perverts in here', category: 'Explicit', url: 'Lot of perverts in here.ogg' },
-                    { name: 'MotherFucker', category: 'Explicit', url: 'MotherFucker.ogg' },
-                    { name: 'Oral Sex', category: 'Explicit', url: 'Oral Sex.ogg' },
-                    { name: 'Orgasm', category: 'Explicit', url: 'Orgasm.ogg' },
-                    { name: 'Retard Alert', category: 'Explicit', url: 'Retard Alert.ogg' },
-                    { name: 'Shut the Fuck Up', category: 'Explicit', url: 'Shut the Fuck Up.ogg' },
-                    { name: 'Suicide', category: 'Explicit', url: 'Suicide.ogg' },
-                    { name: 'Why in the fuck would I do that', category: 'Explicit', url: 'Why in the fuck would I do that.ogg' },
-                    { name: 'Yeah this is gonna help with that bitch', category: 'Explicit', url: 'Yeah this is gonna help with that bitch.ogg' },
-                    { name: 'You Have Smoked Yourself Retarded', category: 'Explicit', url: 'You Have Smoked Yourself Retarded.ogg' },
-                    { name: 'You Suck You Jackass', category: 'Explicit', url: 'You Suck You Jackass.ogg' },
-                ];
-
                 const catBatch = writeBatch(db);
                 defaultCategories.forEach(cat => {
                     catBatch.set(doc(categoriesCollectionRef), cat);
                 });
                 await catBatch.commit();
-
-                const padSnap = await getDocs(soundpadsCollectionRef);
-                if (padSnap.empty) {
-                    const padBatch = writeBatch(db);
-                    defaultSounds.forEach((sound, index) => {
-                        const padData = {
-                            name: sound.name,
-                            sound: { type: 'custom', url: baseURL + sound.url },
-                            order: index,
-                            category: sound.category
-                        };
-                        padBatch.set(doc(soundpadsCollectionRef), padData);
-                    });
-                    await padBatch.commit();
-                }
             }
         }
 
         function listenForCategories() {
             if (unsubscribeFromCategories) unsubscribeFromCategories();
             unsubscribeFromCategories = onSnapshot(categoriesCollectionRef, (snapshot) => {
-                currentCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (snapshot.empty) {
+                    currentCategories = [...defaultCategories];
+                } else {
+                    currentCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                }
                 currentCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
                 renderCategoryUI();
+                renderSoundboard();
             });
         }
 
         function listenForSoundPads() {
             if (unsubscribeFromPads) unsubscribeFromPads();
             unsubscribeFromPads = onSnapshot(soundpadsCollectionRef, (snapshot) => {
-                currentSoundPads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                currentSoundPads.sort((a, b) => {
-                    const categoryA = currentCategories.find(c => c.name === a.category) || { order: 99 };
-                    const categoryB = currentCategories.find(c => c.name === b.category) || { order: 99 };
-                    
-                    if (categoryA.order < categoryB.order) return -1;
-                    if (categoryA.order > categoryB.order) return 1;
-
-                    return a.name.localeCompare(b.name);
-                });
-                
-                currentSoundPads.forEach(pad => {
-                    if (!players[pad.id] && pad.sound.type === 'custom' && pad.sound.url) {
-                        players[pad.id] = new Tone.Player(pad.sound.url).toDestination();
-                    }
-                });
-
+                customSoundPads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderSoundboard();
             });
         }
@@ -588,7 +565,25 @@
             ui.grid.innerHTML = '';
             const searchTerm = ui.searchBar.value.toLowerCase();
             
-            const padsToRender = currentSoundPads.filter(pad => {
+            const allPads = [...defaultPads, ...customSoundPads];
+            
+            allPads.forEach(pad => {
+                if (!players[pad.id] && pad.sound.type === 'custom' && pad.sound.url) {
+                    players[pad.id] = new Tone.Player(pad.sound.url).toDestination();
+                }
+            });
+
+            const sortedPads = allPads.sort((a, b) => {
+                const categoryA = currentCategories.find(c => c.name === a.category) || { order: 99 };
+                const categoryB = currentCategories.find(c => c.name === b.category) || { order: 99 };
+                
+                if (categoryA.order < categoryB.order) return -1;
+                if (categoryA.order > categoryB.order) return 1;
+
+                return a.name.localeCompare(b.name);
+            });
+
+            const padsToRender = sortedPads.filter(pad => {
                 const inSearch = pad.name.toLowerCase().includes(searchTerm);
                 const inCategory = selectedCategory === 'All' || pad.category === selectedCategory;
                 return inSearch && inCategory;
@@ -609,12 +604,14 @@
                 button.textContent = pad.name;
                 button.addEventListener('click', () => playSound(pad));
 
-                const editButton = document.createElement('div');
-                editButton.className = 'edit-btn';
-                editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
-                editButton.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(pad); });
+                if (!pad.id.startsWith('default-')) {
+                    const editButton = document.createElement('div');
+                    editButton.className = 'edit-btn';
+                    editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+                    editButton.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(pad); });
+                    button.appendChild(editButton);
+                }
 
-                button.appendChild(editButton);
                 ui.grid.appendChild(button);
             });
         }
@@ -628,6 +625,9 @@
                     player.stop();
                 } else if (player.loaded) {
                     player.start();
+                } else {
+                    // It might still be loading
+                    player.autostart = true;
                 }
             } else if (pad.sound.type === 'custom' && pad.sound.url) {
                 const newPlayer = new Tone.Player(pad.sound.url).toDestination();
@@ -684,10 +684,16 @@
             const name = ui.editModal.padName.value;
             const category = ui.editModal.padCategory.value;
             const file = ui.editModal.soundFile.files[0];
+            
+            if (file && file.size > 750000) { // ~750 KB limit
+                ui.editModal.fileError.textContent = 'File is too large (max 750 KB).';
+                ui.editModal.fileError.classList.remove('hidden');
+                return;
+            }
+
             const padData = {
                 name: name,
                 category: category,
-                order: id ? currentSoundPads.find(p => p.id === id).order : (currentSoundPads.length || 0)
             };
             if (file) {
                 const reader = new FileReader();
@@ -698,7 +704,7 @@
                 reader.readAsDataURL(file);
             } else {
                 if (id) {
-                    padData.sound = currentSoundPads.find(p => p.id === id).sound;
+                    padData.sound = customSoundPads.find(p => p.id === id).sound;
                 } else {
                     padData.sound = { type: 'synth', note: 'C4' };
                 }
