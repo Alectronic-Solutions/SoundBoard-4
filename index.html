@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customizable Soundboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #111827; /* bg-gray-900 */
+        }
+        .sound-btn {
+            transition: all 0.1s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            -webkit-mask-image: -webkit-radial-gradient(white, black);
+        }
+        .sound-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .edit-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: rgba(0,0,0,0.4);
+            border-radius: 50%;
+            padding: 2px;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            z-index: 10;
+        }
+        .sound-btn:hover .edit-btn {
+            opacity: 1;
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        .modal-content {
+            transition: transform 0.25s ease;
+        }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #1f2937; /* bg-gray-800 */
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .dropdown-content a {
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+        .dropdown-content a:hover { background-color: #374151; /* bg-gray-700 */ }
+        .dropdown:hover .dropdown-content { display: block; }
+        .order-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- Hovering Navbar -->
+    <nav class="fixed top-0 left-0 right-0 bg-gray-900/80 backdrop-blur-sm shadow-md p-4 z-20">
+        <div class="w-full max-w-7xl mx-auto flex items-center justify-between gap-4">
+             <div class="flex-1 flex items-center gap-2">
+                <div class="dropdown">
+                    <button id="category-dropdown-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg text-sm inline-flex items-center">
+                        <span id="category-btn-label">All Categories</span>
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="category-dropdown-content" class="dropdown-content">
+                        <!-- Category links will be generated here -->
+                    </div>
+                </div>
+                <button id="manage-categories-btn" class="text-gray-400 hover:text-white text-sm py-2 px-2 rounded-lg">Manage</button>
+             </div>
+             <div class="flex-grow flex justify-center">
+                <input type="search" id="search-bar" placeholder="Search sounds..." class="w-full max-w-lg bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:ring-cyan-500 focus:border-cyan-500 focus:outline-none">
+             </div>
+             <div class="flex-1 flex justify-end">
+                <button id="stop-all-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm">Stop All</button>
+             </div>
+        </div>
+    </nav>
+
+    <div class="w-full max-w-7xl mx-auto p-1 md:p-2 pt-24">
+        <header class="text-center mb-4">
+            <h1 class="text-3xl md:text-4xl font-bold text-cyan-400">Custom Soundboard</h1>
+        </header>
+        <div id="soundboard-grid" class="grid grid-cols-12 gap-1"></div>
+        <div class="mt-6 text-center">
+            <button id="add-sound-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-5 rounded-lg shadow-lg transition-transform transform hover:scale-105">Add Sound</button>
+        </div>
+        <footer class="text-center mt-4 text-gray-500 text-xs">
+            <p>Your User ID: <span id="user-id-display" class="font-mono"></span></p>
+        </footer>
+    </div>
+
+    <!-- Edit/Add Sound Modal -->
+    <div id="edit-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="modal-content transform scale-95 bg-gray-800 rounded-lg p-6 md:p-8 text-left shadow-2xl w-full max-w-md">
+            <h2 id="modal-title" class="text-2xl font-bold text-white mb-6">Add New Sound</h2>
+            <form id="edit-form">
+                <input type="hidden" id="sound-id">
+                <div class="mb-4">
+                    <label for="pad-name" class="block text-sm font-medium text-gray-300 mb-1">Pad Name</label>
+                    <input type="text" id="pad-name" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500" required>
+                </div>
+                <div class="mb-4">
+                    <label for="pad-category" class="block text-sm font-medium text-gray-300 mb-1">Category</label>
+                    <select id="pad-category" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"></select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Sound Source</label>
+                    <div class="bg-gray-700 rounded-md p-4">
+                         <label for="sound-file" class="block text-sm font-medium text-gray-300 mb-1">Upload Audio File</label>
+                         <input type="file" id="sound-file" accept="audio/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100">
+                         <p id="file-name" class="text-xs text-gray-500 mt-1">No file chosen. Will play a default beep.</p>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center mt-8">
+                    <button type="button" id="delete-btn" class="text-red-500 hover:text-red-400 font-semibold">Delete</button>
+                    <div>
+                        <button type="button" id="cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md mr-2">Cancel</button>
+                        <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage Categories Modal -->
+    <div id="manage-categories-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="modal-content transform scale-95 bg-gray-800 rounded-lg p-6 md:p-8 text-left shadow-2xl w-full max-w-md">
+            <h2 class="text-2xl font-bold text-white mb-4">Manage Categories</h2>
+            <div id="category-list" class="mb-6 max-h-60 overflow-y-auto"></div>
+            <form id="add-category-form" class="flex gap-2">
+                <input type="text" id="new-category-name" placeholder="New category name" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500" required>
+                <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md">Add</button>
+            </form>
+            <div class="text-right mt-6">
+                <button type="button" id="close-categories-modal-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">Done</button>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, setDoc, deleteDoc, getDocs, writeBatch, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO", authDomain: "DEMO", projectId: "DEMO" };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-soundboard-app';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let userId = null;
+        let soundpadsCollectionRef = null;
+        let categoriesCollectionRef = null;
+        
+        let currentSoundPads = [];
+        let currentCategories = [];
+        let selectedCategory = "All";
+        
+        let unsubscribeFromPads = null;
+        let unsubscribeFromCategories = null;
+
+        const ui = {
+            grid: document.getElementById('soundboard-grid'),
+            addSoundBtn: document.getElementById('add-sound-btn'),
+            userIdDisplay: document.getElementById('user-id-display'),
+            searchBar: document.getElementById('search-bar'),
+            stopAllBtn: document.getElementById('stop-all-btn'),
+            editModal: {
+                el: document.getElementById('edit-modal'),
+                title: document.getElementById('modal-title'),
+                form: document.getElementById('edit-form'),
+                soundId: document.getElementById('sound-id'),
+                padName: document.getElementById('pad-name'),
+                padCategory: document.getElementById('pad-category'),
+                soundFile: document.getElementById('sound-file'),
+                fileName: document.getElementById('file-name'),
+                deleteBtn: document.getElementById('delete-btn'),
+                cancelBtn: document.getElementById('cancel-btn'),
+            },
+            categoriesModal: {
+                el: document.getElementById('manage-categories-modal'),
+                list: document.getElementById('category-list'),
+                form: document.getElementById('add-category-form'),
+                input: document.getElementById('new-category-name'),
+                closeBtn: document.getElementById('close-categories-modal-btn'),
+            },
+            categoryDropdown: {
+                btn: document.getElementById('category-dropdown-btn'),
+                label: document.getElementById('category-btn-label'),
+                content: document.getElementById('category-dropdown-content'),
+                manageBtn: document.getElementById('manage-categories-btn'),
+            }
+        };
+
+        const colors = [
+            { class: 'bg-red-500', hover: 'hover:bg-red-600' }, { class: 'bg-orange-500', hover: 'hover:bg-orange-600' },
+            { class: 'bg-yellow-500', hover: 'hover:bg-yellow-600' }, { class: 'bg-green-500', hover: 'hover:bg-green-600' },
+            { class: 'bg-teal-500', hover: 'hover:bg-teal-600' }, { class: 'bg-cyan-500', hover: 'hover:bg-cyan-600' },
+            { class: 'bg-blue-500', hover: 'hover:bg-blue-600' }, { class: 'bg-indigo-500', hover: 'hover:bg-indigo-600' },
+            { class: 'bg-purple-500', hover: 'hover:bg-purple-600' }, { class: 'bg-pink-500', hover: 'hover:bg-pink-600' },
+        ];
+
+        const defaultSynth = new Tone.Synth().toDestination();
+        const players = {}; 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            onAuthStateChanged(auth, handleAuthStateChange);
+            addEventListeners();
+        });
+
+        async function handleAuthStateChange(user) {
+            if (user) {
+                userId = user.uid;
+                ui.userIdDisplay.textContent = userId;
+                soundpadsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/soundpads`);
+                categoriesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/categories`);
+                
+                await checkAndCreateDefaults();
+
+                listenForCategories();
+                listenForSoundPads();
+            } else {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Authentication failed:", error);
+                }
+            }
+        }
+        
+        function addEventListeners() {
+            ui.addSoundBtn.addEventListener('click', openAddModal);
+            ui.editModal.cancelBtn.addEventListener('click', () => closeModal(ui.editModal.el));
+            ui.editModal.form.addEventListener('submit', handleFormSubmit);
+            ui.editModal.deleteBtn.addEventListener('click', handleDelete);
+            ui.editModal.soundFile.addEventListener('change', () => {
+                ui.editModal.fileName.textContent = ui.editModal.soundFile.files.length > 0 ? ui.editModal.soundFile.files[0].name : 'No file chosen.';
+            });
+            ui.searchBar.addEventListener('input', renderSoundboard);
+            ui.stopAllBtn.addEventListener('click', stopAllSounds);
+            
+            ui.categoryDropdown.manageBtn.addEventListener('click', () => showModal(ui.categoriesModal.el));
+            ui.categoriesModal.closeBtn.addEventListener('click', () => closeModal(ui.categoriesModal.el));
+            ui.categoriesModal.form.addEventListener('submit', handleAddCategory);
+        }
+
+        async function checkAndCreateDefaults() {
+            const catSnap = await getDocs(categoriesCollectionRef);
+            if (catSnap.empty) {
+                const baseURL = './sounds/'; 
+                const defaultCategories = [
+                    {name: "Uncategorized", protected: true, color: colors[0], order: 0}, 
+                    {name: "Memes", color: colors[1], order: 1}, 
+                    {name: "Sound FX", color: colors[2], order: 2}, 
+                    {name: "TV & Movies", color: colors[3], order: 3},
+                    {name: "Video Games", color: colors[4], order: 4}, 
+                    {name: "Quotes", color: colors[5], order: 5}, 
+                    {name: "Animals", color: colors[6], order: 6}, 
+                    {name: "Music", color: colors[7], order: 7}, 
+                    {name: "Trump", color: colors[8], order: 8},
+                    {name: "Explicit", color: colors[9], order: 9}
+                ];
+                // UPDATED: Filenames now match user's files exactly, including spaces and capitalization.
+                const defaultSounds = [
+                    { name: '2000 Years Later', category: 'Memes', url: '2000 Years Later.ogg' },
+                    { name: 'Accidents Happen', category: 'Quotes', url: 'Accidents Happen.ogg' },
+                    { name: 'Airhorn Classic', category: 'Sound FX', url: 'Airhorn Classic.ogg' },
+                    { name: 'All Star', category: 'Music', url: 'All Star All Star.ogg' },
+                    { name: 'All this computer hacking is making me thirsty', category: 'Quotes', url: 'All this computer hacking is making me thirsty.ogg' },
+                    { name: 'Americas going to be great again gang', category: 'Trump', url: 'Americas going to be great again gang.ogg' },
+                    { name: 'Anal Sex', category: 'Explicit', url: 'Anal Sex.ogg' },
+                    { name: 'Another One', category: 'Memes', url: 'Another One.ogg' },
+                    { name: 'Are you sure about that', category: 'Memes', url: 'Are you sure about that.ogg' },
+                    { name: 'Asian Gong', category: 'Sound FX', url: 'Asian Gong.ogg' },
+                    { name: 'Bad Boys Theme', category: 'TV & Movies', url: 'Bad Boys Theme.ogg' },
+                    { name: 'Bad to the Bone', category: 'Music', url: 'Bad to the Bone.ogg' },
+                    { name: 'Benny Hill Chase Silly', category: 'TV & Movies', url: 'Benny Hill Chase Silly.ogg' },
+                    { name: 'Big cheer', category: 'Sound FX', url: 'Big cheer.ogg' },
+                    { name: 'Bike Horn', category: 'Sound FX', url: 'Bike Horn.ogg' },
+                    { name: 'Bill Nye the Science Guy', category: 'TV & Movies', url: 'Bill Nye the Science Guy.ogg' },
+                    { name: 'Boing', category: 'Sound FX', url: 'Boing.ogg' },
+                    { name: 'Bomb the shit out of them Trump', category: 'Trump', url: 'Bomb the shit out of them Trump.ogg' },
+                    { name: 'Boxing Bell', category: 'Sound FX', url: 'Boxing Bell.ogg' },
+                    { name: 'Breaking News', category: 'Sound FX', url: 'Breaking News.ogg' },
+                    { name: 'Brutal MK', category: 'Video Games', url: 'Brutal MK.ogg' },
+                    { name: 'Buzzer', category: 'Sound FX', url: 'Buzzer.ogg' },
+                    { name: 'Bye Felicia', category: 'Memes', url: 'Bye Felicia.ogg' },
+                    { name: 'Camera Click', category: 'Sound FX', url: 'Camera Click.ogg' },
+                    { name: 'Car Crash', category: 'Sound FX', url: 'Car Crash.ogg' },
+                    { name: 'Cartoon Slipping', category: 'Sound FX', url: 'Cartoon Slipping.ogg' },
+                    { name: 'Cash me outside how bout dat', category: 'Memes', url: 'Cash me outside how bout dat.ogg' },
+                    { name: 'Chewbaca', category: 'TV & Movies', url: 'Chewbaca.ogg' },
+                    { name: 'Clapping Normal', category: 'Sound FX', url: 'Clapping Normal.ogg' },
+                    { name: 'Come on down', category: 'TV & Movies', url: 'Come-on-down.ogg' },
+                    { name: 'Congratulations Trump', category: 'Trump', url: 'Congratulations Trump.ogg' },
+                    { name: 'Crickets', category: 'Animals', url: 'Crickets.ogg' },
+                    { name: 'Crowd Aww Loss', category: 'Sound FX', url: 'Crowd Aww Loss.ogg' },
+                    { name: 'Crowd Booo', category: 'Sound FX', url: 'Crowd Booo.ogg' },
+                    { name: 'Crying Baby', category: 'Sound FX', url: 'Crying Baby.ogg' },
+                    { name: 'CSI Yeah', category: 'TV & Movies', url: 'CSI Yeah.ogg' },
+                    { name: 'Curb your enthusiasm', category: 'TV & Movies', url: 'Curb-your-enthusiasm.ogg' },
+                    { name: 'Dinosaur Groan', category: 'Animals', url: 'Dinosaur Groan.ogg' },
+                    { name: 'Do not come', category: 'Explicit', url: 'Do not come.ogg' },
+                    { name: 'Dogs', category: 'Animals', url: 'Dogs.ogg' },
+                    { name: 'Donkey', category: 'Animals', url: 'Donkey.ogg' },
+                    { name: 'Drums Medium', category: 'Sound FX', url: 'Drums Medium.ogg' },
+                    { name: 'Drums Rim Shot', category: 'Sound FX', url: 'Drums Rim Shot.ogg' },
+                    { name: 'Dun Dun Dunnnn', category: 'Sound FX', url: 'Dun Dun Dunnnn.ogg' },
+                    { name: 'Eagle', category: 'Animals', url: 'Eagle.ogg' },
+                    { name: 'Evil Laugh', category: 'Sound FX', url: 'Evil Laugh.ogg' },
+                    { name: 'Family Feud Theme', category: 'TV & Movies', url: 'Family Feud Theme.ogg' },
+                    { name: 'Fart', category: 'Sound FX', url: 'Fart.ogg' },
+                    { name: 'Fatality', category: 'Video Games', url: 'Fatality.ogg' },
+                    { name: 'Female scream', category: 'Sound FX', url: 'Female scream.ogg' },
+                    { name: 'Flawless Victory MK', category: 'Video Games', url: 'Flawless Victory MK.ogg' },
+                    { name: 'Fox TV Theme', category: 'TV & Movies', url: 'Fox TV Theme.ogg' },
+                    { name: 'Friends Theme', category: 'TV & Movies', url: 'Friends Theme.ogg' },
+                    { name: 'Gasp', category: 'Sound FX', url: 'Gasp.ogg' },
+                    { name: 'Get er Done', category: 'Quotes', url: 'Get er Done.ogg' },
+                    { name: 'Get Swifty', category: 'TV & Movies', url: 'Get Swifty.ogg' },
+                    { name: 'Godfather Theme', category: 'TV & Movies', url: 'Godfather Theme.ogg' },
+                    { name: 'Gun Shot with Cock', category: 'Sound FX', url: 'Gun Shot with Cock.ogg' },
+                    { name: 'Ha Ha Nelson', category: 'TV & Movies', url: 'Ha Ha Nelson.ogg' },
+                    { name: 'Hallelujah', category: 'Music', url: 'Hallelujah.ogg' },
+                    { name: 'Hawk Tuah', category: 'Memes', url: 'Hawk Tuah.ogg' },
+                    { name: 'He He Jackson', category: 'Music', url: 'He He Jackson.ogg' },
+                    { name: 'Helicopter', category: 'Sound FX', url: 'Helicopter.ogg' },
+                    { name: 'Hell naw', category: 'Quotes', url: 'Hell naw.ogg' },
+                    { name: 'Horse Whinny', category: 'Animals', url: 'Horse Whinny.ogg' },
+                    { name: 'How Dare You', category: 'Quotes', url: 'How Dare You.ogg' },
+                    { name: 'I am a Millionaire - Trump', category: 'Trump', url: 'I am a Millionaire - Trump.ogg' },
+                    { name: 'I dropped my monster condom', category: 'Memes', url: 'I dropped my monster condom.ogg' },
+                    { name: 'I got hairy legs', category: 'Quotes', url: 'I got hairy legs.ogg' },
+                    { name: 'Im gonna come', category: 'Explicit', url: 'Im gonna come.ogg' },
+                    { name: 'Inception', category: 'TV & Movies', url: 'Inception.ogg' },
+                    { name: 'In the Navy', category: 'Music', url: 'In the Navy.ogg' },
+                    { name: 'It is Maam', category: 'Memes', url: 'It is Maam.ogg' },
+                    { name: 'Its raining men hallelujah', category: 'Music', url: 'Its raining men hallelujah.ogg' },
+                    { name: 'Ive fallen and I can\'t get up', category: 'Memes', url: 'Ive fallen and I can\'t get up.ogg' },
+                    { name: 'Jammin Bob Marley', category: 'Music', url: 'Jammin Bob Marley.ogg' },
+                    { name: 'Jeopardy Theme', category: 'TV & Movies', url: 'Jeopardy Theme.ogg' },
+                    { name: 'Just do it', category: 'Memes', url: 'Just do it.ogg' },
+                    { name: 'Kaching', category: 'Sound FX', url: 'Kaching.ogg' },
+                    { name: 'Ladies and Gentlemen we got em', category: 'Memes', url: 'Ladies and Gentlemen we got em.ogg' },
+                    { name: 'Laughing Sitcom', category: 'Sound FX', url: 'Laughing Sitcom.ogg' },
+                    { name: 'Law and Order', category: 'TV & Movies', url: 'Law and Order.ogg' },
+                    { name: 'Looney Toons Theme', category: 'TV & Movies', url: 'Looney Toons Theme.ogg' },
+                    { name: 'LOSE Millionaire', category: 'TV & Movies', url: 'LOSE Millionaire.ogg' },
+                    { name: 'Mad World', category: 'Music', url: 'Mad World.ogg' },
+                    { name: 'Mario Coin', category: 'Video Games', url: 'Mario Coin.ogg' },
+                    { name: 'Mario Game Over', category: 'Video Games', url: 'Mario Game Over.ogg' },
+                    { name: 'Mario Lose Life', category: 'Video Games', url: 'Mario Lose Life.ogg' },
+                    { name: 'Mario Power Up', category: 'Video Games', url: 'Mario Power Up.ogg' },
+                    { name: 'Mash Theme', category: 'TV & Movies', url: 'Mash Theme.ogg' },
+                    { name: 'Meow', category: 'Animals', url: 'Meow.ogg' },
+                    { name: 'Metal Gear Alert', category: 'Video Games', url: 'Metal Gear Alert.ogg' },
+                    { name: 'Mission failed', category: 'Video Games', url: 'Mission failed.ogg' },
+                    { name: 'Mission Impossible', category: 'TV & Movies', url: 'Mission Impossible.ogg' },
+                    { name: 'Monkey', category: 'Animals', url: 'Monkey.ogg' },
+                    { name: 'Moo', category: 'Animals', url: 'Moo.ogg' },
+                    { name: 'My name Jeff', category: 'Memes', url: 'My name Jeff.ogg' },
+                    { name: 'Ohhh La La', category: 'Quotes', url: 'Ohhh La La.ogg' },
+                    { name: 'Ok Lil Jon', category: 'Music', url: 'Ok Lil Jon.ogg' },
+                    { name: 'Pac Man Death', category: 'Video Games', url: 'Pac Man Death.ogg' },
+                    { name: 'Pig', category: 'Animals', url: 'Pig.ogg' },
+                    { name: 'Pokemon', category: 'TV & Movies', url: 'Pokemon.ogg' },
+                    { name: 'Pornhub', category: 'Explicit', url: 'Pornhub.ogg' },
+                    { name: 'Price is right LOSE', category: 'TV & Movies', url: 'Price is right LOSE.ogg' },
+                    { name: 'Punch', category: 'Sound FX', url: 'Punch.ogg' },
+                    { name: 'Road Runner', category: 'TV & Movies', url: 'Road Runner.ogg' },
+                    { name: 'Sad Trombone', category: 'Sound FX', url: 'Sad Trombone.ogg' },
+                    { name: 'Sad Violin', category: 'Music', url: 'Sad Violin.ogg' },
+                    { name: 'ScoobyDoo', category: 'TV & Movies', url: 'ScoobyDoo.ogg' },
+                    { name: 'Seinfeld Intro', category: 'TV & Movies', url: 'Seinfeld Intro.ogg' },
+                    { name: 'Show me the Money', category: 'Quotes', url: 'Show me the Money.ogg' },
+                    { name: 'Smoke Weed Everyday', category: 'Music', url: 'Smoke Weed Everyday.ogg' },
+                    { name: 'Spongebob Fail', category: 'TV & Movies', url: 'Spongebob Fail.ogg' },
+                    { name: 'Spring', category: 'Sound FX', url: 'Spring.ogg' },
+                    { name: 'Star Wars Cantina', category: 'TV & Movies', url: 'Star Wars Cantina.ogg' },
+                    { name: 'Suspense Medium', category: 'Sound FX', url: 'Suspense Medium.ogg' },
+                    { name: 'Taco bell bong', category: 'Sound FX', url: 'Taco bell bong.ogg' },
+                    { name: 'Tada', category: 'Sound FX', url: 'Tada.ogg' },
+                    { name: 'Tequila', category: 'Music', url: 'Tequila.ogg' },
+                    { name: 'Thats What She Said', category: 'Quotes', url: 'Thats What She Said.ogg' },
+                    { name: 'The more you know', category: 'TV & Movies', url: 'The more you know.ogg' },
+                    { name: 'Tim Allen Grunt Home Improvement', category: 'TV & Movies', url: 'Tim Allen Grunt Home Improvement.ogg' },
+                    { name: 'Toilet', category: 'Sound FX', url: 'Toilet.ogg' },
+                    { name: 'Tree Fiddy', category: 'Memes', url: 'Tree Fiddy.ogg' },
+                    { name: 'Universal Studios', category: 'TV & Movies', url: 'Universal Studios.ogg' },
+                    { name: 'Wasted', category: 'Video Games', url: 'Wasted.ogg' },
+                    { name: 'Weakest Link', category: 'TV & Movies', url: 'Weakest Link.ogg' },
+                    { name: 'Well Be Right Back', category: 'TV & Movies', url: 'Well Be Right Back.ogg' },
+                    { name: 'What da dog do', category: 'Memes', url: 'What da dog do.ogg' },
+                    { name: 'What Lil Jon', category: 'Music', url: 'What Lil Jon.ogg' },
+                    { name: 'Where is the lamb sauce', category: 'Quotes', url: 'Where is the lamb sauce.ogg' },
+                    { name: 'Whip', category: 'Sound FX', url: 'Whip.ogg' },
+                    { name: 'Who is your daddy and what does he do', category: 'Quotes', url: 'Who is your daddy and what does he do.ogg' },
+                    { name: 'Whos that Pokemon', category: 'Video Games', url: 'Whos that Pokemon.ogg' },
+                    { name: 'Why are you gay', category: 'Explicit', url: 'Why are you gay.ogg' },
+                    { name: 'Why Cant We Be Friends', category: 'Music', url: 'Why Can\'t We Be Friends.ogg' },
+                    { name: 'WoHoo Homer', category: 'TV & Movies', url: 'WoHoo Homer.ogg' },
+                    { name: 'Wolf', category: 'Animals', url: 'Wolf.ogg' },
+                    { name: 'Wonka flute', category: 'TV & Movies', url: 'Wonka flute.ogg' },
+                    { name: 'Woodpecker', category: 'Animals', url: 'Woodpecker.ogg' },
+                    { name: 'Wow', category: 'Memes', url: 'Wow.ogg' },
+                    { name: 'Ya Science', category: 'Memes', url: 'Ya Science.ogg' },
+                    { name: 'Yahoo', category: 'Sound FX', url: 'Yahoo.ogg' },
+                    { name: 'Yeah Lil Jon', category: 'Music', url: 'Yeah Lil Jon.ogg' },
+                    { name: 'Yippee', category: 'Memes', url: 'Yippee.ogg' },
+                    { name: 'You Lose MK', category: 'Video Games', url: 'You Lose MK.ogg' },
+                    { name: 'You Wanna Get High', category: 'Quotes', url: 'You Wanna Get High.ogg' },
+                    { name: 'Your Fired Trump', category: 'Trump', url: 'Your Fired Trump.ogg' },
+                    { name: 'Youre a Millionaire', category: 'TV & Movies', url: 'You\'re a Millionaire.ogg' },
+                    { name: 'Does he look like a bitch', category: 'Explicit', url: 'Does he look like a bitch.ogg' },
+                    { name: 'Eat Shit Derek', category: 'Explicit', url: 'Eat Shit Derek.ogg' },
+                    { name: 'He was a Retard', category: 'Explicit', url: 'He was a Retard.ogg' },
+                    { name: 'Hopefully you didnt fuck around and waste your life', category: 'Explicit', url: 'Hopefully you didn\'t fuck around and waste your life.ogg' },
+                    { name: 'Im gonna go kill myself', category: 'Explicit', url: 'Im gonna go kill myself.ogg' },
+                    { name: 'Im Kinda Retarded', category: 'Explicit', url: 'Im Kinda Retarded.ogg' },
+                    { name: 'In a few mins bitch', category: 'Explicit', url: 'In a few mins bitch.ogg' },
+                    { name: 'In San Fran its all about gay bath houses', category: 'Explicit', url: 'In San Fran its all about gay bath houses.ogg' },
+                    { name: 'Lot of perverts in here', category: 'Explicit', url: 'Lot of perverts in here.ogg' },
+                    { name: 'MotherFucker', category: 'Explicit', url: 'MotherFucker.ogg' },
+                    { name: 'Oral Sex', category: 'Explicit', url: 'Oral Sex.ogg' },
+                    { name: 'Orgasm', category: 'Explicit', url: 'Orgasm.ogg' },
+                    { name: 'Retard Alert', category: 'Explicit', url: 'Retard Alert.ogg' },
+                    { name: 'Shut the Fuck Up', category: 'Explicit', url: 'Shut the Fuck Up.ogg' },
+                    { name: 'Suicide', category: 'Explicit', url: 'Suicide.ogg' },
+                    { name: 'Why in the fuck would I do that', category: 'Explicit', url: 'Why in the fuck would I do that.ogg' },
+                    { name: 'Yeah this is gonna help with that bitch', category: 'Explicit', url: 'Yeah this is gonna help with that bitch.ogg' },
+                    { name: 'You Have Smoked Yourself Retarded', category: 'Explicit', url: 'You Have Smoked Yourself Retarded.ogg' },
+                    { name: 'You Suck You Jackass', category: 'Explicit', url: 'You Suck You Jackass.ogg' },
+                ];
+
+                const catBatch = writeBatch(db);
+                defaultCategories.forEach(cat => {
+                    catBatch.set(doc(categoriesCollectionRef), cat);
+                });
+                await catBatch.commit();
+
+                const padSnap = await getDocs(soundpadsCollectionRef);
+                if (padSnap.empty) {
+                    const padBatch = writeBatch(db);
+                    defaultSounds.forEach((sound, index) => {
+                        const padData = {
+                            name: sound.name,
+                            sound: { type: 'custom', url: baseURL + sound.url },
+                            order: index,
+                            category: sound.category
+                        };
+                        padBatch.set(doc(soundpadsCollectionRef), padData);
+                    });
+                    await padBatch.commit();
+                }
+            }
+        }
+
+        function listenForCategories() {
+            if (unsubscribeFromCategories) unsubscribeFromCategories();
+            unsubscribeFromCategories = onSnapshot(categoriesCollectionRef, (snapshot) => {
+                currentCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                currentCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                renderCategoryUI();
+            });
+        }
+
+        function listenForSoundPads() {
+            if (unsubscribeFromPads) unsubscribeFromPads();
+            unsubscribeFromPads = onSnapshot(soundpadsCollectionRef, (snapshot) => {
+                currentSoundPads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                currentSoundPads.sort((a, b) => {
+                    const categoryA = currentCategories.find(c => c.name === a.category) || { order: 99 };
+                    const categoryB = currentCategories.find(c => c.name === b.category) || { order: 99 };
+                    
+                    if (categoryA.order < categoryB.order) return -1;
+                    if (categoryA.order > categoryB.order) return 1;
+
+                    return a.name.localeCompare(b.name);
+                });
+                
+                currentSoundPads.forEach(pad => {
+                    if (!players[pad.id] && pad.sound.type === 'custom' && pad.sound.url) {
+                        players[pad.id] = new Tone.Player(pad.sound.url).toDestination();
+                    }
+                });
+
+                renderSoundboard();
+            });
+        }
+
+        function renderCategoryUI() {
+            ui.categoryDropdown.content.innerHTML = '';
+            const allLink = document.createElement('a');
+            allLink.href = "#";
+            allLink.textContent = "All Categories";
+            allLink.onclick = (e) => { e.preventDefault(); setCategoryFilter("All"); };
+            ui.categoryDropdown.content.appendChild(allLink);
+
+            ui.editModal.padCategory.innerHTML = '';
+            ui.categoriesModal.list.innerHTML = '';
+
+            currentCategories.forEach((cat, index) => {
+                const link = document.createElement('a');
+                link.href = "#";
+                link.textContent = cat.name;
+                link.onclick = (e) => { e.preventDefault(); setCategoryFilter(cat.name); };
+                ui.categoryDropdown.content.appendChild(link);
+
+                const option = document.createElement('option');
+                option.value = cat.name;
+                option.textContent = cat.name;
+                ui.editModal.padCategory.appendChild(option);
+
+                const catItem = document.createElement('div');
+                catItem.className = 'flex justify-between items-center p-2 rounded-md hover:bg-gray-700';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = cat.name;
+                
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'flex items-center gap-2';
+
+                const upBtn = document.createElement('button');
+                upBtn.innerHTML = '&#9650;';
+                upBtn.className = 'order-btn text-gray-400 hover:text-white';
+                upBtn.disabled = index === 0;
+                upBtn.onclick = () => moveCategory(cat.id, -1);
+                buttonsDiv.appendChild(upBtn);
+
+                const downBtn = document.createElement('button');
+                downBtn.innerHTML = '&#9660;';
+                downBtn.className = 'order-btn text-gray-400 hover:text-white';
+                downBtn.disabled = index === currentCategories.length - 1;
+                downBtn.onclick = () => moveCategory(cat.id, 1);
+                buttonsDiv.appendChild(downBtn);
+
+                if (!cat.protected) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = `&times;`;
+                    deleteBtn.className = 'text-red-500 font-bold text-xl px-2';
+                    deleteBtn.onclick = () => handleDeleteCategory(cat.id, cat.name);
+                    buttonsDiv.appendChild(deleteBtn);
+                }
+                
+                catItem.appendChild(nameSpan);
+                catItem.appendChild(buttonsDiv);
+                ui.categoriesModal.list.appendChild(catItem);
+            });
+        }
+
+        function setCategoryFilter(categoryName) {
+            selectedCategory = categoryName;
+            ui.categoryDropdown.label.textContent = categoryName;
+            renderSoundboard();
+        }
+
+        function renderSoundboard() {
+            ui.grid.innerHTML = '';
+            const searchTerm = ui.searchBar.value.toLowerCase();
+            
+            const padsToRender = currentSoundPads.filter(pad => {
+                const inSearch = pad.name.toLowerCase().includes(searchTerm);
+                const inCategory = selectedCategory === 'All' || pad.category === selectedCategory;
+                return inSearch && inCategory;
+            });
+
+            if (padsToRender.length === 0) {
+                ui.grid.innerHTML = `<p class="text-gray-400 text-center col-span-full">No sounds found.</p>`;
+                return;
+            }
+
+            padsToRender.forEach(pad => {
+                const padCategory = currentCategories.find(c => c.name === pad.category) || currentCategories.find(c => c.name === 'Uncategorized');
+                const categoryColor = padCategory && padCategory.color ? padCategory.color : colors[0];
+
+                const button = document.createElement('button');
+                button.id = `pad-${pad.id}`;
+                button.className = `sound-btn w-full h-14 rounded-md flex items-center justify-center text-xs font-semibold text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-400 ${categoryColor.class} ${categoryColor.hover} p-1 text-center leading-tight`;
+                button.textContent = pad.name;
+                button.addEventListener('click', () => playSound(pad));
+
+                const editButton = document.createElement('div');
+                editButton.className = 'edit-btn';
+                editButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+                editButton.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(pad); });
+
+                button.appendChild(editButton);
+                ui.grid.appendChild(button);
+            });
+        }
+        
+        async function playSound(pad) {
+            if (Tone.context.state !== 'running') await Tone.start();
+
+            const player = players[pad.id];
+            if (player) {
+                if (player.state === 'started') {
+                    player.stop();
+                } else if (player.loaded) {
+                    player.start();
+                }
+            } else if (pad.sound.type === 'custom' && pad.sound.url) {
+                const newPlayer = new Tone.Player(pad.sound.url).toDestination();
+                newPlayer.autostart = true;
+                players[pad.id] = newPlayer;
+            } else {
+                defaultSynth.triggerAttackRelease(pad.sound.note || 'C4', '8n');
+            }
+        }
+
+        function stopAllSounds() {
+            Object.values(players).forEach(player => {
+                if (player && player.state === 'started') player.stop();
+            });
+        }
+
+        function openAddModal() {
+            ui.editModal.form.reset();
+            ui.editModal.soundId.value = '';
+            ui.editModal.title.textContent = 'Add New Sound';
+            ui.editModal.fileName.textContent = 'No file chosen. Will play a default beep.';
+            ui.editModal.deleteBtn.classList.add('hidden');
+            showModal(ui.editModal.el);
+        }
+
+        function openEditModal(pad) {
+            ui.editModal.form.reset();
+            ui.editModal.soundId.value = pad.id;
+            ui.editModal.padName.value = pad.name;
+            ui.editModal.padCategory.value = pad.category || 'Uncategorized';
+            ui.editModal.title.textContent = 'Edit Sound';
+            ui.editModal.fileName.textContent = (pad.sound.type === 'custom' && pad.sound.url) ? 'Custom sound uploaded.' : 'Using default beep.';
+            ui.editModal.deleteBtn.classList.remove('hidden');
+            showModal(ui.editModal.el);
+        }
+
+        function showModal(modalElement) {
+            modalElement.classList.remove('hidden');
+            setTimeout(() => {
+                modalElement.classList.remove('opacity-0');
+                modalElement.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal(modalElement) {
+            modalElement.classList.add('opacity-0');
+            modalElement.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => modalElement.classList.add('hidden'), 250);
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const id = ui.editModal.soundId.value;
+            const name = ui.editModal.padName.value;
+            const category = ui.editModal.padCategory.value;
+            const file = ui.editModal.soundFile.files[0];
+            const padData = {
+                name: name,
+                category: category,
+                order: id ? currentSoundPads.find(p => p.id === id).order : (currentSoundPads.length || 0)
+            };
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    padData.sound = { type: 'custom', url: ev.target.result };
+                    await savePad(id, padData);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                if (id) {
+                    padData.sound = currentSoundPads.find(p => p.id === id).sound;
+                } else {
+                    padData.sound = { type: 'synth', note: 'C4' };
+                }
+                await savePad(id, padData);
+            }
+        }
+
+        async function savePad(id, data) {
+            try {
+                if (id) {
+                    await setDoc(doc(soundpadsCollectionRef, id), data);
+                } else {
+                    await addDoc(soundpadsCollectionRef, data);
+                }
+                closeModal(ui.editModal.el);
+            } catch (error) {
+                console.error("Error saving pad:", error);
+            }
+        }
+
+        async function handleDelete() {
+            const id = ui.editModal.soundId.value;
+            if (id) {
+                try {
+                    await deleteDoc(doc(soundpadsCollectionRef, id));
+                    closeModal(ui.editModal.el);
+                } catch (error) {
+                    console.error("Error deleting pad:", error);
+                }
+            }
+        }
+
+        async function handleAddCategory(e) {
+            e.preventDefault();
+            const newName = ui.categoriesModal.input.value.trim();
+            if (newName && !currentCategories.some(c => c.name.toLowerCase() === newName.toLowerCase())) {
+                const newCategoryColor = colors[currentCategories.length % colors.length];
+                await addDoc(categoriesCollectionRef, { 
+                    name: newName, 
+                    color: newCategoryColor,
+                    order: currentCategories.length 
+                });
+                ui.categoriesModal.input.value = '';
+            }
+        }
+
+        async function handleDeleteCategory(id, name) {
+            const q = query(soundpadsCollectionRef, where("category", "==", name));
+            const padsToUpdate = await getDocs(q);
+            const batch = writeBatch(db);
+            padsToUpdate.forEach(padDoc => {
+                batch.update(padDoc.ref, { category: "Uncategorized" });
+            });
+            await batch.commit();
+            await deleteDoc(doc(categoriesCollectionRef, id));
+        }
+
+        async function moveCategory(categoryId, direction) {
+            const categoryIndex = currentCategories.findIndex(c => c.id === categoryId);
+            if (categoryIndex === -1) return;
+
+            const targetIndex = categoryIndex + direction;
+            if (targetIndex < 0 || targetIndex >= currentCategories.length) return;
+
+            const categoryToMove = currentCategories[categoryIndex];
+            const targetCategory = currentCategories[targetIndex];
+
+            const batch = writeBatch(db);
+
+            const docRefToMove = doc(categoriesCollectionRef, categoryToMove.id);
+            batch.update(docRefToMove, { order: targetCategory.order });
+
+            const targetDocRef = doc(categoriesCollectionRef, targetCategory.id);
+            batch.update(targetDocRef, { order: categoryToMove.order });
+
+            await batch.commit();
+        }
+    </script>
+</body>
+</html>
